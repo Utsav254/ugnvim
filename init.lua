@@ -30,42 +30,54 @@ vim.g.maplocalleader = "\\"
 require("lazy").setup({
     spec =
         {
-                -- Colour Scheme
+        -- Colour Scheme
         "rebelot/kanagawa.nvim",
-                -- Indent Blank Lines
-                "lukas-reineke/indent-blankline.nvim",
-                -- Auto Pairs
-                "windwp/nvim-autopairs",
-                -- Comments
-                "numToStr/Comment.nvim",
-                -- NeoTree File Explorer
-                {
-                        "nvim-neo-tree/neo-tree.nvim",
-                        dependencies =
-                        {
-                                "nvim-lua/plenary.nvim",
-                                "nvim-tree/nvim-web-devicons",
-                                "MunifTanjim/nui.nvim",
-                        },
-                },
-                -- Telescope
-                "nvim-telescope/telescope.nvim",
-                -- LSP stuff
-                "neovim/nvim-lspconfig",
+		-- Indent Blank Lines
+		"lukas-reineke/indent-blankline.nvim",
+		-- Auto Pairs
+		"windwp/nvim-autopairs",
+		-- Comments
+		"numToStr/Comment.nvim",
+		-- NeoTree File Explorer
+		{
+				"nvim-neo-tree/neo-tree.nvim",
+				dependencies =
+				{
+						"nvim-lua/plenary.nvim",
+						"nvim-tree/nvim-web-devicons",
+						"MunifTanjim/nui.nvim",
+				},
+		},
+		-- Telescope
+		"nvim-telescope/telescope.nvim",
+		-- Auto Complete
+		{
+			'saghen/blink.cmp',
+			dependencies = { 'rafamadriz/friendly-snippets' },
+			version = '1.*',
+		},
+		-- LSP stuff
+		{
+			"neovim/nvim-lspconfig",
+			dependencies = 
+			{
+				'saghen/blink.cmp',
+			},
+		},
         "williamboman/mason.nvim",
         "williamboman/mason-lspconfig.nvim",
-                -- Lua Line
-                {
-                        "nvim-lualine/lualine.nvim",
-                        dependencies = { "nvim-tree/nvim-web-devicons" }
-                }
+		-- Lua Line
+		{
+				"nvim-lualine/lualine.nvim",
+				dependencies = { "nvim-tree/nvim-web-devicons" }
+		},
     },
     install = { colorscheme = { "kanagawa" } },
     checker = { enabled = true },
     rocks = { enabled = false },
 })
 
--- Kanagawa Colour Scheme options
+-- /////////////////////////Kanagawa Colour Scheme options////////////////////////////
 require('kanagawa').setup({
     compile = true,
         commentStyle = { italic = false },
@@ -73,7 +85,7 @@ require('kanagawa').setup({
     statementStyle = { bold = false },
 })
 
--- Indent blank lines options
+-- ///////////////////////////////Indent blank lines options////////////////////////
 require("ibl").setup({
         indent = {char = "│"},
         scope = { enabled = true },
@@ -89,7 +101,7 @@ require('Comment').setup()
 require('neo-tree').setup()
 vim.api.nvim_set_keymap("n", "<leader>ee", ":Neotree toggle<CR>", { noremap = true, silent = true })
 
--- Telescope options
+-- ////////////////////////////Telescope options/////////////////////////////////////
 require("telescope").setup({
         pickers =
         {
@@ -109,42 +121,84 @@ vim.keymap.set("n", "<leader>fg",
 
 vim.keymap.set("n", "<leader>fs", builtin.current_buffer_fuzzy_find)
 
--- LSP configurations
+-- ////////////////////////////////Auto Complete options///////////////////////////
+require('blink.cmp').setup({
+	keymap = { preset = 'super-tab' },
+
+    appearance = {
+		nerd_font_variant = 'mono'
+    },
+	
+
+	sources = {
+      default = { 'lsp', 'path', 'snippets', 'buffer' },
+    },
+
+	signature = { enabled = true },
+
+	fuzzy = { implementation = "prefer_rust_with_warning" },
+})
+
+-- ////////////////////////////////LSP configurations//////////////////////////////
 require("mason").setup()
 require("mason-lspconfig").setup({
     ensure_installed = { "clangd", "zls"},
 })
 local lspconfig = require("lspconfig")
+local autocmpcapabilities = require('blink.cmp').get_lsp_capabilities()
 
-lspconfig.clangd.setup({})
-lspconfig.zls.setup({})
+lspconfig.clangd.setup({capabilities = autocmpcapabilities})
+lspconfig.zls.setup({capabilities = autocmpcapabilities})
 
--- LSP Keybindings
+-- //////////////////////////LSP Keybindings///////////////////////////////
 vim.keymap.set("n", "<leader>lh", vim.lsp.buf.hover)
-vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename)
 vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action)
 
-vim.keymap.set("n", "<leader>ld", function()
-    local params = vim.lsp.util.make_position_params()
-    vim.api.nvim_command("normal! m'")  -- Mark current position before jumping
+vim.keymap.set("n", "<leader>ld",
+	function()
+		vim.api.nvim_command("normal! m'")  -- Mark the current position before jumping
 
-    vim.lsp.buf_request(0, "textDocument/declaration", params, function(err, result)
-        if not result or vim.tbl_isempty(result) then
-            vim.lsp.buf.definition()  -- If no declaration, go to definition
-        else
-            vim.lsp.buf.declaration()  -- Otherwise, go to declaration
-        end
-    end)
-end, { desc = "Toggle between declaration and definition (with return support)" })
+		vim.lsp.buf_request(0, "textDocument/declaration", {},
+			function(err, result)
+				if not result or vim.tbl_isempty(result) then
+				  builtin.lsp_definitions()
+				else
+				  vim.lsp.buf.declaration()
+				end
+			end
+		)
+	end,
+	{ desc = "Toggle between declaration and definition with Telescope" }
+)
+
+vim.keymap.set("n", "<leader>lr", function()
+	builtin.lsp_references()
+end)
+
+vim.keymap.set("n", "<leader>lic", function()
+	builtin.lsp_incoming_calls()
+end)
+
+vim.keymap.set("n", "<leader>loc", function()
+	builtin.lsp_outgoing_calls()
+end)
+
+vim.keymap.set("n", "<leader>li", function()
+	builtin.lsp_implementations()
+end)
+
+vim.keymap.set("n", "<leader>lt", function()
+	builtin.lsp_type_definitions()
+end)
 
 
 vim.keymap.set("n", "<leader>le",
-        function()
-                vim.diagnostic.open_float(nil, { focus = false, scope = "cursor" })
-        end)
+	function()
+			vim.diagnostic.open_float(nil, { focus = false, scope = "cursor" })
+	end
+)
 
--- Lua Line options
+-- /////////////////// Lua Line options//////////////////////
 require('lualine').setup()
-
 
 vim.cmd("colorscheme kanagawa-dragon")
