@@ -87,7 +87,7 @@ require('kanagawa').setup({
 
 -- ///////////////////////////////Indent blank lines options////////////////////////
 require("ibl").setup({
-        indent = {char = "│"},
+        indent = {char = "???"},
         scope = { enabled = true },
 })
 
@@ -197,6 +197,14 @@ vim.keymap.set("n", "<leader>le",
 			vim.diagnostic.open_float(nil, { focus = false, scope = "cursor" })
 	end
 )
+
+vim.keymap.set("n", "<leader>lw", function()
+	vim.diagnostic.open_float(nil, {
+		focus = false,
+		scope = "cursor",
+		severity = vim.diagnostic.severity.WARN,
+	})
+end)
 
 -- /////////////////// Lua Line options//////////////////////
 require('lualine').setup()
