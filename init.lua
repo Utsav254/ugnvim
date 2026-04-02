@@ -4,7 +4,9 @@ vim.o.shiftwidth = 4
 vim.o.softtabstop = 4
 vim.o.number = true
 vim.o.relativenumber = true
-
+vim.o.laststatus = 0
+vim.opt_local.linebreak = true
+vim.opt_local.smoothscroll = true
 vim.api.nvim_set_keymap("i", "jk", "<Esc>", { noremap = true, silent = true })
 
 -- Lazy Nvim Setup
@@ -30,8 +32,8 @@ vim.g.maplocalleader = "\\"
 require("lazy").setup({
     spec =
         {
-        -- Colour Scheme
-        "rebelot/kanagawa.nvim",
+		-- Colour Scheme
+		"datsfilipe/vesper.nvim",
 		-- Indent Blank Lines
 		"lukas-reineke/indent-blankline.nvim",
 		-- Auto Pairs
@@ -66,28 +68,27 @@ require("lazy").setup({
 		},
         "williamboman/mason.nvim",
         "williamboman/mason-lspconfig.nvim",
-		-- Lua Line
-		{
-				"nvim-lualine/lualine.nvim",
-				dependencies = { "nvim-tree/nvim-web-devicons" }
-		},
     },
     install = { colorscheme = { "kanagawa" } },
     checker = { enabled = true },
     rocks = { enabled = false },
 })
 
--- /////////////////////////Kanagawa Colour Scheme options////////////////////////////
-require('kanagawa').setup({
-    compile = true,
-        commentStyle = { italic = false },
-    keywordStyle = { italic = false },
-    statementStyle = { bold = false },
+-- /////////////////////////vesper Colour Scheme options////////////////////////////
+require('vesper').setup({
+    transparent = false,
+    italics = {
+        comments = true,
+        keywords = true, 
+        functions = true,
+        strings = true,
+        variables = true,
+    },
 })
 
 -- ///////////////////////////////Indent blank lines options////////////////////////
 require("ibl").setup({
-        indent = {char = "???"},
+        indent = {char = "│"},
         scope = { enabled = true },
 })
 
@@ -98,28 +99,37 @@ require('nvim-autopairs').setup()
 require('Comment').setup()
 
 -- Neotree options
-require('neo-tree').setup()
+require("neo-tree").setup({
+    close_if_last_window = true,
+    enable_git_status = true,
+    enable_diagnostics = false,
+    filesystem = {
+        filtered_items = {
+            hide_dotfiles = false,
+            hide_gitignored = true,
+        },
+    },
+})
 vim.api.nvim_set_keymap("n", "<leader>ee", ":Neotree toggle<CR>", { noremap = true, silent = true })
 
 -- ////////////////////////////Telescope options/////////////////////////////////////
 require("telescope").setup({
-        pickers =
-        {
-                find_files = { theme = "dropdown" },
-                live_grep = { theme = "dropdown" },
-                current_buffer_fuzzy_find = { theme = "dropdown" },
-        },
+	pickers =
+	{
+		find_files = { theme = "dropdown" },
+		live_grep = { theme = "dropdown" },
+		current_buffer_fuzzy_find = { theme = "dropdown" },
+	},
 })
 
-local builtin = require("telescope.builtin")
-
-vim.keymap.set("n", "<leader>ff", builtin.find_files)
+local tl_builtin = require("telescope.builtin")
+vim.keymap.set("n", "<leader>ff", tl_builtin.find_files)
 vim.keymap.set("n", "<leader>fg",
-        function()
-                builtin.live_grep({ cwd = vim.fn.getcwd() })
-        end)
+	function()
+		tl_builtin.live_grep({ cwd = vim.fn.getcwd() })
+	end)
 
-vim.keymap.set("n", "<leader>fs", builtin.current_buffer_fuzzy_find)
+vim.keymap.set("n", "<leader>fs", tl_builtin.current_buffer_fuzzy_find)
 
 -- ////////////////////////////////Auto Complete options///////////////////////////
 require('blink.cmp').setup({
@@ -142,71 +152,73 @@ require('blink.cmp').setup({
 -- ////////////////////////////////LSP configurations//////////////////////////////
 require("mason").setup()
 require("mason-lspconfig").setup({
-    ensure_installed = { "clangd", "zls"},
+    ensure_installed = { "clangd" }
 })
-local lspconfig = require("lspconfig")
-local autocmpcapabilities = require('blink.cmp').get_lsp_capabilities()
 
-lspconfig.clangd.setup({capabilities = autocmpcapabilities})
-lspconfig.zls.setup({capabilities = autocmpcapabilities})
+local lspconfig = vim.lsp.config
+local capabilities = require('blink.cmp').get_lsp_capabilities()
+
+vim.lsp.start({
+    name = "clangd",
+    cmd = { "clangd" },
+    root_dir = vim.fs.root(0, { "compile_commands.json", ".git" }),
+    capabilities = capabilities,
+})
 
 -- //////////////////////////LSP Keybindings///////////////////////////////
-vim.keymap.set("n", "<leader>lh", vim.lsp.buf.hover)
-vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action)
 
-vim.keymap.set("n", "<leader>ld",
-	function()
-		vim.api.nvim_command("normal! m'")  -- Mark the current position before jumping
+local generic_layout = {
+    layout_strategy = "flex",
+    layout_config = {
+        width = 0.7,
+        height = 0.7,
+        horizontal = { mirror = false, preview_cutoff = 20, preview_width = 0.5 },
+        vertical   = { mirror = false, preview_cutoff = 20, preview_height = 0.5 },
+    },
+    previewer = true,
+    jump_type = "never",
+    sorter = require("telescope.config").values.generic_sorter(),
+}
 
-		vim.lsp.buf_request(0, "textDocument/declaration", {},
-			function(err, result)
-				if not result or vim.tbl_isempty(result) then
-				  builtin.lsp_definitions()
-				else
-				  vim.lsp.buf.declaration()
-				end
-			end
-		)
-	end,
-	{ desc = "Toggle between declaration and definition with Telescope" }
-)
-
-vim.keymap.set("n", "<leader>lr", function()
-	builtin.lsp_references()
-end)
-
-vim.keymap.set("n", "<leader>lic", function()
-	builtin.lsp_incoming_calls()
-end)
-
-vim.keymap.set("n", "<leader>loc", function()
-	builtin.lsp_outgoing_calls()
-end)
-
-vim.keymap.set("n", "<leader>li", function()
-	builtin.lsp_implementations()
-end)
+vim.keymap.set("n", "<leader>ld", function()
+    tl_builtin.lsp_definitions(generic_layout)
+end, { desc = "Telescope LSP Definitions" })
 
 vim.keymap.set("n", "<leader>lt", function()
-	builtin.lsp_type_definitions()
-end)
+    tl_builtin.lsp_type_definitions(generic_layout)
+end, { desc = "Telescope LSP Type Definitions" })
+
+vim.keymap.set("n", "<leader>lr", function()
+    tl_builtin.lsp_references(generic_layout)
+end, { desc = "Telescope LSP References" })
+
+vim.keymap.set("n", "<leader>lic", function()
+    tl_builtin.lsp_incoming_calls(generic_layout)
+end, { desc = "Telescope LSP Incoming Calls" })
+
+vim.keymap.set("n", "<leader>loc", function()
+    tl_builtin.lsp_outgoing_calls(generic_layout)
+end, { desc = "Telescope LSP Outgoing Calls" })
+
+vim.keymap.set("n", "<leader>wd", function()
+    tl_builtin.diagnostics(vim.tbl_extend("force", generic_layout, { bufnr = 0 }))
+end, { desc = "Telescope Workspace Diagnostics" })
+
+vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "LSP Code Actions (builtin)" })
+vim.keymap.set("n", "<leader>le", function()
+    vim.diagnostic.open_float(nil, {
+        focus = false,
+        scope = "line",
+        border = "rounded",
+    })
+end, { desc = "Show line diagnostics in floating window" })
+vim.keymap.set("n", "<leader>lh", function()
+    vim.lsp.buf.hover({
+        border = "rounded",
+        focusable = true,
+    })
+end, { desc = "Show LSP hover information" })
 
 
-vim.keymap.set("n", "<leader>le",
-	function()
-			vim.diagnostic.open_float(nil, { focus = false, scope = "cursor" })
-	end
-)
-
-vim.keymap.set("n", "<leader>lw", function()
-	vim.diagnostic.open_float(nil, {
-		focus = false,
-		scope = "cursor",
-		severity = vim.diagnostic.severity.WARN,
-	})
-end)
-
--- /////////////////// Lua Line options//////////////////////
-require('lualine').setup()
-
-vim.cmd("colorscheme kanagawa-dragon")
+-- ///////////////////////// source colour scheme//////////////////
+vim.cmd.colorscheme('vesper')
